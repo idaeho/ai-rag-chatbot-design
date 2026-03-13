@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI RAG ChatBot 설계서</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;background:#F9F5EE;color:#2D2D2D;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.container{max-width:720px;width:90%;padding:60px 40px;text-align:center}
+h1{font-size:2.2rem;font-weight:700;margin-bottom:12px;color:#1a1a1a}
+.subtitle{font-size:1.1rem;color:#666;margin-bottom:48px;line-height:1.6}
+.cards{display:flex;flex-direction:column;gap:20px}
+.card{background:#fff;border-radius:16px;padding:32px;text-decoration:none;color:#2D2D2D;box-shadow:0 2px 12px rgba(0,0,0,0.06);border:1px solid #eee;transition:all .2s ease}
+.card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.1);border-color:#C4956A}
+.card-icon{font-size:2.4rem;margin-bottom:16px}
+.card h2{font-size:1.3rem;font-weight:600;margin-bottom:8px}
+.card p{font-size:0.95rem;color:#888;line-height:1.5}
+.badge{display:inline-block;background:#C4956A;color:#fff;font-size:0.75rem;padding:4px 10px;border-radius:20px;margin-top:12px;font-weight:500}
+.footer{margin-top:48px;font-size:0.85rem;color:#aaa}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Pydantic AI RAG ChatBot</h1>
+<p class="subtitle">생성형 AI 기반 RAG 검색 챗봇 기술 설계서</p>
+<div class="cards">
+<a class="card" href="pydantic-ai-rag-chatbot.html">
+<div class="card-icon">🎨</div>
+<h2>프론트엔드 설계서</h2>
+<p>UI/UX 설계, 프로토타입, 컴포넌트 구조, Claude Cowork 디자인 시스템</p>
+<span class="badge">Frontend Design</span>
+</a>
+<a class="card" href="rag-chatbot-backend-design.html">
+<div class="card-icon">⚙️</div>
+<h2>백엔드 상세 설계서</h2>
+<p>sLLM, Embedding, Vector DB, RAG Pipeline, Workflow 엔진 아키텍처</p>
+<span class="badge">Backend Design</span>
+</a>
+</div>
+<p class="footer">Pydantic AI Framework · Claude Cowork Design System</p>
+</div>
+</body>
+</html>
