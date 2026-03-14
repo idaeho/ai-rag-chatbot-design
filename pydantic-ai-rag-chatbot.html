@@ -1,1 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pydantic AI RAG Chatbot — 설계서 & 프로토타입</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wan2land/d2coding/d2coding-ligature-full.css">
+<style>
+  :root {
+    --bg: #F9F5EE;
+    --bg-chat: #FFFFFF;
+    --bg-sidebar: #F3EDE4;
+    --bg-input: #FFFFFF;
+    --border: #E5DDD3;
+    --border-focus: #C4956A;
+    --text: #2D2A26;
+    --text-secondary: #6B6560;
+    --text-muted: #9B958E;
+    --accent: #C4956A;
+    --accent-hover: #B07E55;
+    --accent-light: #F5EDE4;
+    --user-bubble: #F3EDE4;
+    --ai-bubble: #FFFFFF;
+    --success: #5B8C5A;
+    --warning: #D4A843;
+    --info: #5A7B8C;
+    --code-bg: #2D2A26;
+    --code-text: #E8E2DA;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Layout */
+  .app-container { display: flex; height: 100vh; }
+
+  /* Tab Navigation */
+  .tab-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+  }
+  .tab-btn {
+    padding: 14px 24px; border: none; background: none;
+    font-size: 14px; font-weight: 500; color: var(--text-secondary);
+    cursor: pointer; position: relative; transition: var(--transition);
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); }
+  .tab-btn.active::after {
+    content: ''; position: absolute; bottom: 0; left: 12px; right: 12px;
+    height: 2px; background: var(--accent); border-radius: 2px 2px 0 0;
+  }
+
+  .tab-content { display: none; height: 100vh; padding-top: 48px; }
+  .tab-content.active { display: flex; flex-direction: column; }
+
+  /* ===== DESIGN TAB ===== */
+  .design-content {
+    overflow-y: auto; padding: 40px; max-width: 900px; margin: 0 auto;
+    flex: 1;
+  }
+  .design-content h1 {
+    font-size: 32px; font-weight: 700; margin-bottom: 8px;
+    color: var(--text);
+  }
+  .design-content .subtitle {
+    font-size: 16px; color: var(--text-secondary); margin-bottom: 40px;
+  }
+  .design-content h2 {
+    font-size: 22px; font-weight: 600; margin: 36px 0 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  .design-content h3 {
+    font-size: 17px; font-weight: 600; margin: 24px 0 12px;
+    color: var(--text);
+  }
+  .design-content p { margin-bottom: 14px; color: var(--text-secondary); }
+  .design-content ul {
+    margin: 0 0 16px 20px; color: var(--text-secondary);
+  }
+  .design-content li { margin-bottom: 6px; }
+  .design-content strong { color: var(--text); }
+
+  .arch-diagram {
+    background: var(--bg-sidebar); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 32px; margin: 20px 0;
+    font-family: 'D2Coding ligature', 'D2Coding', 'Fira Code', 'JetBrains Mono', 'SF Mono', monospace; font-size: 13px;
+    line-height: 1.8; white-space: pre; overflow-x: auto;
+    color: var(--text);
+  }
+
+  .tech-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0;
+  }
+  .tech-card {
+    background: var(--bg-chat); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    transition: var(--transition);
+  }
+  .tech-card:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+  .tech-card h4 { font-size: 15px; margin-bottom: 8px; color: var(--accent); }
+  .tech-card p { font-size: 13px; margin: 0; }
+
+  .code-block {
+    background: var(--code-bg); color: var(--code-text);
+    border-radius: var(--radius-sm); padding: 20px;
+    font-family: 'D2Coding ligature', 'D2Coding', 'Fira Code', 'JetBrains Mono', 'SF Mono', monospace; font-size: 13px;
+    line-height: 1.7; overflow-x: auto; margin: 16px 0;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  .code-block .comment { color: #7B7570; }
+  .code-block .keyword { color: #C4956A; }
+  .code-block .string { color: #8BAA7B; }
+  .code-block .decorator { color: #D4A843; }
+  .code-block .func { color: #7BA8C4; }
+
+  .flow-step {
+    display: flex; gap: 16px; margin: 12px 0; align-items: flex-start;
+  }
+  .flow-num {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: white; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; flex-shrink: 0;
+  }
+  .flow-desc { flex: 1; padding-top: 4px; }
+  .flow-desc strong { display: block; margin-bottom: 2px; }
+
+  /* ===== CHATBOT TAB ===== */
+  .chatbot-layout {
+    display: flex; flex: 1; overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 280px; background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+  }
+  .sidebar-header h3 {
+    font-size: 15px; font-weight: 600; margin-bottom: 4px;
+  }
+  .sidebar-header p {
+    font-size: 12px; color: var(--text-muted);
+  }
+  .sidebar-section {
+    padding: 16px 20px;
+  }
+  .sidebar-section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px;
+  }
+
+  /* Document Upload Area */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 24px 16px; text-align: center; cursor: pointer;
+    transition: var(--transition); background: rgba(255,255,255,0.5);
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent); background: var(--accent-light);
+  }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-text { font-size: 13px; color: var(--text-secondary); }
+  .upload-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .upload-input { display: none; }
+
+  /* Document List */
+  .doc-list { margin-top: 12px; }
+  .doc-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.6); margin-bottom: 6px;
+    transition: var(--transition); position: relative;
+  }
+  .doc-item:hover { background: rgba(255,255,255,0.9); }
+  .doc-icon { font-size: 18px; flex-shrink: 0; }
+  .doc-info { flex: 1; min-width: 0; }
+  .doc-name {
+    font-size: 13px; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .doc-meta { font-size: 11px; color: var(--text-muted); }
+  .doc-status {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .doc-status.indexed { background: var(--success); }
+  .doc-status.processing { background: var(--warning); animation: pulse 1.5s infinite; }
+  .doc-status.error { background: #C45A5A; }
+  .doc-remove {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 20px; height: 20px; border: none; background: none;
+    color: var(--text-muted); cursor: pointer; font-size: 14px;
+    opacity: 0; transition: var(--transition); border-radius: 4px;
+  }
+  .doc-item:hover .doc-remove { opacity: 1; }
+  .doc-remove:hover { background: rgba(196,90,90,0.1); color: #C45A5A; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Processing Progress */
+  .progress-bar {
+    height: 3px; background: var(--border); border-radius: 2px;
+    margin-top: 6px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 2px; transition: width 0.5s ease;
+  }
+
+  /* Stats */
+  .sidebar-stats {
+    padding: 16px 20px; border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between;
+    font-size: 12px; padding: 4px 0;
+  }
+  .stat-label { color: var(--text-muted); }
+  .stat-value { color: var(--text); font-weight: 500; }
+
+  /* Chat Area */
+  .chat-area {
+    flex: 1; display: flex; flex-direction: column;
+    background: var(--bg-chat); position: relative;
+  }
+
+  .chat-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chat-title { font-size: 15px; font-weight: 600; }
+  .chat-badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    background: var(--accent-light); color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Messages */
+  .messages {
+    flex: 1; overflow-y: auto; padding: 24px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+
+  .message {
+    display: flex; gap: 12px; max-width: 720px;
+    animation: messageIn 0.3s ease;
+  }
+  .message.user { margin-left: auto; flex-direction: row-reverse; }
+
+  @keyframes messageIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .msg-avatar.ai {
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: white;
+  }
+  .msg-avatar.user-avatar {
+    background: var(--bg-sidebar); color: var(--text-secondary);
+  }
+
+  .msg-content {
+    padding: 14px 18px; border-radius: var(--radius-lg);
+    font-size: 14px; line-height: 1.65;
+  }
+  .message.ai .msg-content {
+    background: var(--ai-bubble); border: 1px solid var(--border);
+  }
+  .message.user .msg-content {
+    background: var(--user-bubble); color: var(--text);
+  }
+
+  .msg-sources {
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .msg-sources-title {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+  }
+  .source-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; background: var(--accent-light);
+    border-radius: 12px; font-size: 11px; color: var(--accent);
+    margin: 2px 4px 2px 0; cursor: pointer;
+    transition: var(--transition);
+  }
+  .source-chip:hover { background: var(--accent); color: white; }
+
+  /* Typing Indicator */
+  .typing-indicator {
+    display: none; gap: 12px; padding: 0 24px 16px;
+    align-items: center;
+  }
+  .typing-indicator.active { display: flex; }
+  .typing-dots { display: flex; gap: 4px; }
+  .typing-dot {
+    width: 6px; height: 6px; background: var(--text-muted);
+    border-radius: 50%; animation: typingBounce 1.4s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* Input Area */
+  .input-area {
+    padding: 16px 24px 24px; border-top: 1px solid var(--border);
+    background: var(--bg-chat);
+  }
+  .input-wrapper {
+    display: flex; gap: 10px; align-items: flex-end;
+    background: var(--bg-input); border: 1.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 8px 12px;
+    transition: var(--transition);
+  }
+  .input-wrapper:focus-within {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,149,106,0.1);
+  }
+  .chat-input {
+    flex: 1; border: none; outline: none; resize: none;
+    font-size: 14px; font-family: inherit; line-height: 1.5;
+    background: transparent; color: var(--text);
+    min-height: 24px; max-height: 120px;
+  }
+  .chat-input::placeholder { color: var(--text-muted); }
+  .send-btn {
+    width: 36px; height: 36px; border: none; border-radius: 50%;
+    background: var(--accent); color: white; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: var(--transition); flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
+  .send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; }
+
+  .input-hints {
+    display: flex; gap: 8px; margin-top: 8px; padding: 0 4px;
+  }
+  .input-hint {
+    font-size: 11px; color: var(--text-muted); padding: 2px 8px;
+    background: var(--bg); border-radius: 10px;
+    cursor: pointer; transition: var(--transition);
+  }
+  .input-hint:hover { background: var(--accent-light); color: var(--accent); }
+
+  /* Welcome Screen */
+  .welcome-screen {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 40px;
+    text-align: center;
+  }
+  .welcome-icon {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: white; margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(196,149,106,0.3);
+  }
+  .welcome-title { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .welcome-desc {
+    font-size: 14px; color: var(--text-secondary);
+    max-width: 400px; margin-bottom: 32px;
+  }
+  .welcome-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .welcome-action {
+    padding: 10px 20px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: var(--bg-chat);
+    font-size: 13px; cursor: pointer; transition: var(--transition);
+    color: var(--text-secondary);
+  }
+  .welcome-action:hover {
+    border-color: var(--accent); background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  /* Right Panel — Context */
+  .context-panel {
+    width: 320px; background: var(--bg-sidebar);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    flex-shrink: 0; overflow-y: auto;
+  }
+  .context-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+  }
+  .context-header h4 { font-size: 14px; font-weight: 600; }
+  .context-section { padding: 16px 20px; }
+  .context-section h5 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 10px;
+  }
+
+  .chunk-card {
+    background: rgba(255,255,255,0.7); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px; margin-bottom: 8px;
+    font-size: 12px; line-height: 1.5; color: var(--text-secondary);
+    transition: var(--transition);
+  }
+  .chunk-card:hover { border-color: var(--accent); }
+  .chunk-score {
+    font-size: 10px; font-weight: 600; color: var(--success);
+    margin-bottom: 4px;
+  }
+  .chunk-source {
+    font-size: 10px; color: var(--text-muted); margin-top: 6px;
+  }
+
+  .todo-list { list-style: none; }
+  .todo-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; font-size: 13px;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+  .todo-check {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; transition: var(--transition);
+  }
+  .todo-check.done {
+    background: var(--success); border-color: var(--success); color: white;
+  }
+  .todo-check.active {
+    border-color: var(--accent); background: var(--accent-light);
+  }
+  .todo-text { color: var(--text-secondary); }
+  .todo-text.done { text-decoration: line-through; color: var(--text-muted); }
+  .todo-text.active { color: var(--accent); font-weight: 500; }
+
+  /* Responsive */
+  @media (max-width: 1200px) {
+    .context-panel { display: none; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .tech-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* Toggle Switch for Context Panel */
+  .toggle-context {
+    position: absolute; right: 16px; top: 50%;
+    transform: translateY(-50%);
+    width: 28px; height: 28px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--bg-chat);
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 14px;
+    color: var(--text-muted); transition: var(--transition);
+  }
+  .toggle-context:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- Tab Navigation -->
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('design')">설계서</button>
+  <button class="tab-btn" onclick="switchTab('chatbot')">프로토타입 UI</button>
+</nav>
+
+<!-- ===== TAB 1: DESIGN DOCUMENT ===== -->
+<div id="tab-design" class="tab-content active">
+<div class="design-content">
+
+<h1>Pydantic AI 기반 RAG 검색 챗봇 설계서</h1>
+<p class="subtitle">생성 AI + 문서 업로드 + 벡터 검색 기반 지능형 문서 QA 시스템</p>
+
+<h2>1. 시스템 개요</h2>
+<p>본 시스템은 <strong>Pydantic AI</strong> 에이전트 프레임워크를 활용하여 사용자가 업로드한 문서를 벡터 임베딩으로 인덱싱하고, 자연어 질문에 대해 문서 기반 답변을 생성하는 <strong>RAG(Retrieval-Augmented Generation) 챗봇</strong>입니다.</p>
+
+<p>UI/UX는 Claude Cowork 스타일을 따라 따뜻한 색감의 믈니멀 디자인, 사이드바 문서 관리, 컨텍스트 패널, 타이핑 인디케이터 등을 제공합니다.</p>
+
+<h2>2. 기술 스택</h2>
+<div class="tech-grid">
+  <div class="tech-card">
+    <h4>Pydantic AI (v1.x)</h4>
+    <p>에이전트 프레임워크. 타입 안전성, 의존성 주입, 도구 등록, 구조화된 출력을 제공. OpenAI/Anthropic/Gemini 등 모델 무관 지원.</p>
+  </div>
+  <div class="tech-card">
+    <h4>FastAPI</h4>
+    <p>비동기 REST API 서버. SSE 스트리밍 응답, 파일 업로드 엔드포인트, 세션 관리를 처리.</p>
+  </div>
+  <div class="tech-card">
+    <h4>PostgreSQL + pgvector</h4>
+    <p>벡터 저장소. 코사인 유사도 기반 시맨틱 검색 수행. 하이브리드 검샩(벡터 + 키워드) 지원.</p>
+  </div>
+  <div class="tech-card">
+    <h4>OpenAI Embeddings</h4>
+    <p>text-embedding-3-small 모델로 문서 청크와 질의를 1536차원 벡터로 변환.</p>
+  </div>
+  <div class="tech-card">
+    <h4>LangChain (문서처리)</h4>
+    <p>PDF/DOCX/TXT 등 다양한 포맷의 문서 로딩과 시맨틱 청킹 담당.</p>
+  </div>
+  <div class="tech-card">
+    <h4>React + Tailwind</h4>
+    <p>Claude Cowork 스타일 프론트엔드. 문서 드래그&드롭, 실시간 스트리밍 응답 UI.</p>
+  </div>
+</div>
+
+<h2>3. 시스템 아키텍처</h2>
+<div class="arch-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                      Frontend (React)                           │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────────────────┐     │
+│  │ 문서 업로드 │  │  채팅 인터페이스  │  │  컨텍스트/소스 패널   │     │
+│  │ Drag&Drop │  │  SSE Stream  │  │  검색 결과 시각화     │     │
+│  └─────┬─────┘  └──────┬───────┘  └───────────┬───────────┘     │
+└────────┼───────────────┼─────────────────────┼──────────────────┘
+         │               │                     │
+    ─ ─ ─┼─ ─ ─ ─ ─ ─ ─ ┼ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┼─ ─ ─  REST API
+         │               │                     │
+┌────────▼───────────────▼─────────────────────▼──────────────────┐
+│                    FastAPI Backend                                │
+│                                                                  │
+│  ┌──────────────┐   ┌────────────────────────────────────────┐  │
+│  │ /upload       │   │          Pydantic AI Agent             │  │
+│  │ 파일 수신      │   │  ┌─────────┐  ┌──────────┐           │  │
+│  │ 포맷 검증      │   │  │ System  │  │ @tool    │           │  │
+│  └──────┬────────┘   │  │ Prompt  │  │ retrieve │           │  │
+│         │            │  └─────────┘  └────┬─────┘           │  │
+│  ┌──────▼────────┐   │                    │                  │  │
+│  │ Document      │   │  ┌─────────────────▼───────────────┐ │  │
+│  │ Processor     │   │  │  Vector Search (pgvector)       │ │  │
+│  │ ├ PDF 추출      │   │  │  cosine similarity <->         │ │  │
+│  │ ├ 청크 분할    │   │  │  + 키워드 필터 -하이눌리드-      │ │  │
+│  │ └ 임베딩 생성  │   │  └─────────────────┬───────────────┘ │  │
+│  └──────┬────────┘   │                    │                  │  │
+│         │            │  ┌─────────────────▼───────────────┐ │  │
+│         │            │  │  LLM Response Generation        │ │  │
+│         │            │  │  컨텍스트 기반 답변 + 출처 표시    │ │  │
+│         │            │  └─────────────────────────────────┘ │  │
+│         │            └────────────────────────────────────────┘  │
+│         │                                                        │
+│  ┌──────▼────────────────────────────────────────────────────┐  │
+│  │              PostgreSQL + pgvector                         │  │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐ │  │
+│  │  │ documents    │  │ chunks        │  │ conversations   │ │  │
+│  │  │ id, name,    │  │ id, doc_id,  │  │ id, session_id, │ │  │
+│  │  │ type, size,   │  │ content,     │  │ role, content,   │ │  │
+│  │  │ created_at   │  │ embedding    │  │ sources,        │ │  │
+│  │  │              │  │ VECTOR(1536) │  │ created_at      │ │  │
+│  │  └──────────────┘  └──────────────┘  └─────────────────┘ │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+</div>
+
+<h2>4. 핵심 모듈 설계</h2>
+
+<h3>4.1 Pydantic AI 에이전트 정의</h3>
+<div class="code-block">
+<span class="keyword">from</span> pydantic_ai <span class="keyword">import</span> Agent
+<span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel
+<span class="keyword">from</span> dataclasses <span class="keyword">import</span> dataclass
+
+<span class="decorator">@dataclass</span>
+<span class="keyword">class</span> <span class="func">RAGDeps</span>:
+    <span class="comment">"""에이전트 의존성: DB 연결 + 임베딩 클라이언트"""</span>
+    pool: AsyncConnectionPool
+    openai_client: AsyncOpenAI
+
+<span class="keyword">class</span> <span class="func">ChatResponse</span>(BaseModel):
+    <span class="comment">"""구조화된 응답 스키마"""</span>
+    answer: str
+    sources: list[str]
+    confidence: float
+
+rag_agent = Agent(
+    <span class="string">'openai:gpt-4o'</span>,  <span class="comment"># 모델 무관 — Anthropic, Gemini 등 교체 가능</span>
+    deps_type=RAGDeps,
+    output_type=ChatResponse,
+    instructions=<span class="string">"""업로드된 문서를 검색하여 정확한 답변을 제공합니다.
+    반드시 retrieve 도구를 사용하여 관련 문서를 찾은 후 답변하세요.
+    답변에 출처를 반드시 폨함하세요."""</span>
+)
+</div>
+
+<h3>4.2 검색 도구(Tool) 등록</h3>
+<div class="code-block">
+<span class="decorator">@rag_agent.tool</span>
+<span class="keyword">async def</span> <span class="func">retrieve</span>(ctx: RunContext[RAGDeps], query: str) -> str:
+    <span class="comment">"""벡터 유사도 검색으로 관련 문서 청크를 반환"""</span>
+    <span class="comment"># 1. 질의를 임베딩 벡터로 변환</span>
+    embedding = <span class="keyword">await</span> ctx.deps.openai_client.embeddings.create(
+        model=<span class="string">'text-embedding-3-small'</span>,
+        input=query
+    )
+    query_vector = embedding.data[0].embedding
+
+    <span class="comment"># 2. pgvector 코사인 유사도 검색</span>
+    rows = <span class="keyword">await</span> ctx.deps.pool.fetch(<span class="string">"""
+        SELECT content, doc_name, similarity
+        FROM chunks
+        ORDER BY embedding <-> $1::vector
+        LIMIT 5
+    """</span>, query_vector)
+
+    <span class="comment"># 3. 검색 결과를 컨텍스트로 조합</span>
+    <span class="keyword">return</span> <span class="string">'\n---\n'</span>.join(
+        f<span class="string">"[{r['doc_name']}]: {r['content']}"</span> <span class="keyword">for</span> r <span class="keyword">in</span> rows
+    )
+</div>
+
+<h3>4.3 문서 처리 파이프라인</h3>
+<div class="flow-step">
+  <div class="flow-num">1</div>
+  <div class="flow-desc"><strong>업로드 수신</strong> FastAPI /upload 엔드포인트에서 PDF, DOCX, TXT, MD 파일 수신</div>
+</div>
+<div class="flow-step">
+  <div class="flow-num">2</div>
+  <div class="flow-desc"><strong>텍스트 추출</strong> Docling(PDF 테이블/이미지), python-docx(DOCX), 직접 파싱(TXT/MD)</div>
+</div>
+<div class="flow-step">
+  <div class="flow-num">3</div>
+  <div class="flow-desc"><strong>시맨틱 청킹</strong> RecursiveCharacterTextSplitter로 500~1000자 단위 분할, 100자 오버랩</div>
+</div>
+<div class="flow-step">
+  <div class="flow-num">4</div>
+  <div class="flow-desc"><strong>임베딩 생성</strong> 각 청크를 text-embedding-3-small로 1536차원 벡터 변환, 배치 처리</div>
+</div>
+<div class="flow-step">
+  <div class="flow-num">5</div>
+  <div class="flow-desc"><strong>인덱싱 저장</strong> PostgreSQL pgvector에 벡터 + 메타데이터 저장, HNSW 인덱스 적용</div>
+</div>
+
+<h3>4.4 API 엔드포인트 설계</h3>
+<div class="code-block">
+<span class="comment"># FastAPI 라우트 정의</span>
+
+<span class="decorator">@app.post</span>(<span class="string">"/api/upload"</span>)
+<span class="keyword">async def</span> <span class="func">upload_document</span>(file: UploadFile):
+    <span class="comment">"""문서 업로드 → 추출 → 청킹 → 임베딩 → 저장"""</span>
+
+<span class="decorator">@app.post</span>(<span class="string">"/api/chat"</span>)
+<span class="keyword">async def</span> <span class="func">chat</span>(request: ChatRequest):
+    <span class="comment">"""동기 채팅 — Pydantic AI 에이전트 실행"""</span>
+
+<span class="decorator">@app.post</span>(<span class="string">"/api/chat/stream"</span>)
+<span class="keyword">async def</span> <span class="func">chat_stream</span>(request: ChatRequest):
+    <span class="comment">"""SSE 스트리밍 — 실시간 토큰 단위 응답"""</span>
+
+<span class="decorator">@app.get</span>(<span class="string">"/api/documents"</span>)
+<span class="keyword">async def</span> <span class="func">list_documents</span>():
+    <span class="comment">"""업로드된 문서 목록 + 인덱싱 상태"""</span>
+
+<span class="decorator">@app.delete</span>(<span class="string">"/api/documents/{doc_id}"</span>)
+<span class="keyword">async def</span> <span class="func">delete_document</span>(doc_id: str):
+    <span class="comment">"""문서 및 관련 청크 삭제"""</span>
+
+<span class="decorator">@app.get</span>(<span class="string">"/api/search"</span>)
+<span class="keyword">async def</span> <span class="func">search</span>(query: str, mode: str = <span class="string">"hybrid"</span>):
+    <span class="comment">"""직접 검색 — vector / hybrid 모드"""</span>
+</div>
+
+<h2>5. DB 스키마</h2>
+<div class="code-block">
+<span class="comment">-- PostgreSQL + pgvector 확장</span>
+<span class="keyword">CREATE EXTENSION IF NOT EXISTS</span> vector;
+
+<span class="keyword">CREATE TABLE</span> documents (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name        TEXT NOT NULL,
+    file_type   TEXT NOT NULL,
+    file_size   INTEGER,
+    chunk_count INTEGER DEFAULT 0,
+    status      TEXT DEFAULT <span class="string">'processing'</span>,  <span class="comment">-- processing | indexed | error</span>
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+<span class="keyword">CREATE TABLE</span> chunks (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    doc_id      UUID REFERENCES documents(id) ON DELETE CASCADE,
+    content     TEXT NOT NULL,
+    embedding   VECTOR(1536) NOT NULL,
+    chunk_index INTEGER,
+    metadata    JSONB DEFAULT <span class="string">'{}'</span>,
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+<span class="comment">-- HNSW 인덱스: 빠른 근사 최근접 탐색</span>
+<span class="keyword">CREATE INDEX</span> idx_chunks_embedding
+  ON chunks USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+<span class="keyword">CREATE TABLE</span> conversations (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id  TEXT NOT NULL,
+    role        TEXT NOT NULL,  <span class="comment">-- user | assistant</span>
+    content     TEXT NOT NULL,
+    sources     JSONB DEFAULT <span class="string">'[]'</span>,
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+</div>
+
+<h2>6. Pydantic AI 핵심 장점 (vs LangChain)</h2>
+<div class="tech-grid">
+  <div class="tech-card">
+    <h4>타입 안전성</h4>
+    <p>Pydantic 기반 입출력 검증. IDE 자동완성, 런타임 전 오류 검출. LangChain 대비 오류율 현저히 감소.</p>
+  </div>
+  <div class="tech-card">
+    <h4>토큰 효율성</h4>
+    <p>LangChain 대비 2.7배 적은 토큰 소비(동일 RAG 작업 기준). 불필요한 추상화 레이어 제거.</p>
+  </div>
+  <div class="tech-card">
+    <h4>의존성 주입</h4>
+    <p>테스트와 프로덕션 환경에서 동일 에이전트 코드 재사용. DB/API 클라이언트를 깔끔하게 주입.</p>
+  </div>
+  <div class="tech-card">
+    <h4>모델 교체 용이</h4>
+    <p>OpenAI → Anthropic → Gemini 등 한 줄 변경으로 모델 교체. 벤더 종속 없음.</p>
+  </div>
+</div>
+
+<h2>7. 배포 구성</h2>
+<div class="code-block">
+<span class="comment"># docker-compose.yml</span>
+<span class="keyword">services</span>:
+  <span class="func">postgres</span>:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: rag_chatbot
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports: [<span class="string">"5432:5432"</span>]
+
+  <span class="func">backend</span>:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres/rag_chatbot
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports: [<span class="string">"8000:8000"</span>]
+    depends_on: [postgres]
+
+  <span class="func">frontend</span>:
+    build: ./frontend
+    ports: [<span class="string">"3000:3000"</span>]
+    depends_on: [backend]
+</div>
+
+<h2>8. 프로젝트 디렉토리 구조</h2>
+<div class="code-block">
+rag-chatbot/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              <span class="comment"># FastAPI 앱 진입점</span>
+│   │   ├── agent.py             <span class="comment"># Pydantic AI 에이전트 정의</span>
+│   │   ├── tools.py             <span class="comment"># 검색 도구 (retrieve, hybrid_search)</span>
+│   │   ├── models.py            <span class="comment"># Pydantic 스키마 (Request/Response)</span>
+│   │   ├── db.py                <span class="comment"># PostgreSQL 연결 + 쿼리</span>
+│   │   ├── ingestion/
+│   │   │   ├── extractor.py     <span class="comment"># PDF/DOCX/TXT 텍스트 추출</span>
+│   │   │   ├── chunker.py       <span class="comment"># 시맨틱 청킹</span>
+│   │   │   └── embedder.py      <span class="comment"># 임베딩 생성 (배치)</span>
+│   │   └── config.py            <span class="comment"># 환경변수, 설정</span>
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── components/
+│   │   │   ├── ChatArea.jsx     <span class="comment"># 메시지 + 스트리밍</span>
+│   │   │   ├── Sidebar.jsx      <span class="comment"># 문서 업로드 + 관리</span>
+│   │   │   ├── ContextPanel.jsx <span class="comment"># 검색 결과 시각화</span>
+│   │   │   └── MessageBubble.jsx
+│   │   └── hooks/
+│   │       ├── useChat.js       <span class="comment"># SSE 스트리밍 훅</span>
+│   │       └── useUpload.js     <span class="comment"># 파일 업로드 훅</span>
+│   ├── Dockerfile
+│   └── package.json
+├── docker-compose.yml
+├── .env.example
+└── README.md
+</div>
+
+</div>
+</div>
+
+<!-- ===== TAB 2: CHATBOT PROTOTYPE ===== -->
+<div id="tab-chatbot" class="tab-content">
+<div class="chatbot-layout">
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h3>RAG 문서 챇봇</h3>
+      <p>Pydantic AI 기반</p>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">문서 업로드</div>
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">+</div>
+        <div class="upload-text">파일을 드래그하거나 클릭하세요</div>
+        <div class="upload-hint">PDF, DOCX, TXT, MD (최대 50MB)</div>
+        <input type="file" class="upload-input" id="fileInput"
+               accept=".pdf,.docx,.txt,.md" multiple>
+      </div>
+
+      <div class="doc-list" id="docList"></div>
+    </div>
+
+    <div class="sidebar-stats" id="sidebarStats">
+      <div class="stat-row">
+        <span class="stat-label">문서 수</span>
+        <span class="stat-value" id="statDocs">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">총 청크</span>
+        <span class="stat-value" id="statChunks">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">인덱스 상태</span>
+        <span class="stat-value" id="statStatus">대기중</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Chat Area -->
+  <main class="chat-area">
+    <div class="chat-header">
+      <span class="chat-title">새 대화</span>
+      <span class="chat-badge">Pydantic AI + pgvector</span>
+    </div>
+
+    <div class="messages" id="messages">
+      <!-- Welcome Screen -->
+      <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-icon">AI</div>
+        <div class="welcome-title">문서에 대해 무엇이든 물어보세요</div>
+        <div class="welcome-desc">
+          왼쪽에서 문서를 업로드하면, AI가 문서 내용을 분석하여 정확한 답변과 출처를 제공합니다.
+        </div>
+        <div class="welcome-actions">
+          <button class="welcome-action" onclick="insertQuestion('이 문서의 핵심 내용을 요약해주세요')">문서 요약</button>
+          <button class="welcome-action" onclick="insertQuestion('관련 조항이나 규정을 찾아주세요')">조항 검색</button>
+          <button class="welcome-action" onclick="insertQuestion('이 문서에서 중요한 수치와 데이터를 정리해주세요')">데이터 추출</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-hover));display:flex;align-items:center;justify-content:center;color:white;font-size:14px;">AI</div>
+      <div class="typing-dots">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrapper">
+        <textarea class="chat-input" id="chatInput"
+                  placeholder="문서에 대해 질문하세요..."
+                  rows="1"
+                  onkeydown="handleKeyDown(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hints">
+        <span class="input-hint" onclick="insertQuestion('이 문서의 주요 논점은?')">주요 논점</span>
+        <span class="input-hint" onclick="insertQuestion('요약해주세요')">요약</span>
+        <span class="input-hint" onclick="insertQuestion('관련 내용을 비교해주세요')">비교 분석</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right Context Panel -->
+  <aside class="context-panel" id="contextPanel">
+    <div class="context-header">
+      <h4>검색 컨텍스트</h4>
+    </div>
+
+    <div class="context-section">
+      <h5>진행 상태</h5>
+      <ul class="todo-list" id="todoList">
+        <li class="todo-item">
+          <div class="todo-check done">✓</div>
+          <span class="todo-text done">문서 업로드 확인</span>
+        </li>
+        <li class="todo-item">
+          <div class="todo-check done">✓</div>
+          <span class="todo-text done">텍스트 추출 완료</span>
+        </li>
+        <li class="todo-item">
+          <div class="todo-check active"></div>
+          <span class="todo-text active">벡터 검색 수행 중</span>
+        </li>
+        <li class="todo-item">
+          <div class="todo-check"></div>
+          <span class="todo-text">답변 생성</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="context-section" id="searchResults">
+      <h5>검색된 문서 청크</h5>
+      <div class="chunk-card">
+        <div class="chunk-score">유사도: 0.94</div>
+        <div>Pydantic AI는 Python 에이전트 프레임워크로, 타입 안전한 방식으로 프로덕션 수준의 GenAI 애플리케이션을 구축...</div>
+        <div class="chunk-source">출처: pydantic-ai-docs.pdf — 섹션 1.2</div>
+      </div>
+      <div class="chunk-card">
+        <div class="chunk-score">유사도: 0.89</div>
+        <div>RAG 파이프라인은 문서를 벡터로 변환하여 시맨틱 검색을 수행하고, 검색된 컨텍스트를 기반으로 답변을 생성...</div>
+        <div class="chunk-source">출처: rag-architecture.md — 섹션 3.1</div>
+      </div>
+      <div class="chunk-card">
+        <div class="chunk-score">유사도: 0.85</div>
+        <div>pgvector는 PostgreSQL 확장으로, HNSW 인덱스를 통해 빠른 근산 최근접 탐색(ANN)을 지원합니다...</div>
+        <div class="chunk-source">출처: vector-db-guide.txt — 섹션 2.4</div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+</div>
+
+<script>
+  // Tab Switching
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tabName).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // File Upload
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const docList = document.getElementById('docList');
+  let documents = [];
+  let totalChunks = 0;
+
+  uploadZone.addEventListener('click', () => fileInput.click());
+  uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    Array.from(files).forEach(file => {
+      const doc = {
+        id: Date.now() + Math.random(),
+        name: file.name,
+        size: file.size,
+        type: file.name.split('.').pop().toUpperCase(),
+        status: 'processing',
+        chunks: 0,
+        progress: 0
+      };
+      documents.push(doc);
+      renderDocList();
+      simulateProcessing(doc);
+    });
+  }
+
+  function simulateProcessing(doc) {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15 + 5;
+      if (progress >= 100) {
+        progress = 100;
+        doc.status = 'indexed';
+        doc.chunks = Math.floor(Math.random() * 40) + 10;
+        totalChunks += doc.chunks;
+        clearInterval(interval);
+      }
+      doc.progress = Math.min(progress, 100);
+      renderDocList();
+      updateStats();
+    }, 300);
+  }
+
+  function renderDocList() {
+    const icons = { PDF: '\u{1F4C4}', DOCX: '\u{1F4DD}', TXT: '\u{1F4CB}', MD: '\u{1F4D6}' };
+    docList.innerHTML = documents.map(d => `
+      <div class="doc-item">
+        <span class="doc-icon">${icons[d.type] || '\u{1F4C4}'}</span>
+        <div class="doc-info">
+          <div class="doc-name">${d.name}</div>
+          <div class="doc-meta">${d.type} · ${formatSize(d.size)}${d.chunks ? ' · ' + d.chunks + '개 청크' : ''}</div>
+          ${d.status === 'processing' ? `<div class="progress-bar"><div class="progress-fill" style="width:${d.progress}%"></div></div>` : ''}
+        </div>
+        <div class="doc-status ${d.status}"></div>
+        <button class="doc-remove" onclick="removeDoc(${d.id})">\u00D7</button>
+      </div>
+    `).join('');
+  }
+
+  function removeDoc(id) {
+    const doc = documents.find(d => d.id === id);
+    if (doc) totalChunks -= doc.chunks || 0;
+    documents = documents.filter(d => d.id !== id);
+    renderDocList();
+    updateStats();
+  }
+
+  function updateStats() {
+    document.getElementById('statDocs').textContent = documents.length;
+    document.getElementById('statChunks').textContent = totalChunks;
+    const indexed = documents.filter(d => d.status === 'indexed').length;
+    document.getElementById('statStatus').textContent =
+      documents.length === 0 ? '대기중' :
+      indexed === documents.length ? '완료' : '처리중...';
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1048576).toFixed(1) + ' MB';
+  }
+
+  // Chat
+  const messagesEl = document.getElementById('messages');
+  const chatInput = document.getElementById('chatInput');
+  const welcomeScreen = document.getElementById('welcomeScreen');
+  const typingIndicator = document.getElementById('typingIndicator');
+
+  function insertQuestion(q) {
+    chatInput.value = q;
+    chatInput.focus();
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function sendMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+    // User message
+    appendMessage('user', text);
+    chatInput.value = '';
+    autoResize();
+
+    // Simulate AI response
+    typingIndicator.classList.add('active');
+
+    setTimeout(() => {
+      typingIndicator.classList.remove('active');
+
+      const responses = {
+        default: {
+          text: `업로드된 문서를 검색한 결과, 관련 내용을 찾았습니다.\n\nPydantic AI는 Python 기반 에이전트 프레임워크로, 타입 안전한 방식으로 프로덕션 수준의 GenAI 애플리케이션을 구축할 수 있게 해줍니다. FastAPI에서 영감을 받아 설계되었으며, 의존성 주입 시스템을 통해 DB 연결이나 API 클라이�f�트를 에이전트에 깔끔하게 주입할 수 있습니다.\n\nRAG 파이프라인에서는 @agent.tool 데코레이터로 검색 도구를 등록하고, pgvector의 코사인 유사도를 통해 관련 문서 청크를 찾아 컨텍스트로 활용합니다.`,
+          sources: ['pydantic-ai-docs.pdf §1.2', 'rag-architecture.md §3.1']
+        }
+      };
+
+      const resp = responses.default;
+      appendMessage('ai', resp.text, resp.sources);
+    }, 1500 + Math.random() * 1000);
+  }
+
+  function appendMessage(role, text, sources) {
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+
+    const avatar = role === 'ai'
+      ? '<div class="msg-avatar ai">AI</div>'
+      : '<div class="msg-avatar user-avatar">U</div>';
+
+    let sourcesHtml = '';
+    if (sources && sources.length > 0) {
+      sourcesHtml = `
+        <div class="msg-sources">
+          <div class="msg-sources-title">참조 출처</div>
+          ${sources.map(s => `<span class="source-chip">\u{1F4CE} ${s}</span>`).join('')}
+        </div>`;
+    }
+
+    div.innerHTML = `
+      ${avatar}
+      <div class="msg-content">
+        ${text.replace(/\n/g, '<br>')}
+        ${sourcesHtml}
+      </div>`;
+
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Auto-resize textarea
+  chatInput.addEventListener('input', autoResize);
+  function autoResize() {
+    chatInput.style.height = 'auto';
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  }
+</script>
+
+</body>
+</html>
