@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 챗봇 백엔드 상세 설계서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wan2land/d2coding/d2coding-ligature-full.css">
+<style>
+:root {
+  --bg: #F9F5EE; --bg2: #FFFFFF; --sidebar-bg: #F3EDE4;
+  --border: #E5DDD3; --text: #2D2A26; --text2: #6B6560; --text3: #9B958E;
+  --accent: #C4956A; --accent2: #B07E55; --accent-light: #F5EDE4;
+  --success: #5B8C5A; --warning: #D4A843; --info: #5A7B8C; --danger: #C45A5A;
+  --code-bg: #2D2A26; --code-text: #E8E2DA;
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background:var(--bg); color:var(--text); line-height:1.7; }
+
+/* Navigation */
+.top-nav { position:fixed; top:0; left:0; right:0; z-index:100; background:var(--sidebar-bg); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 32px; height:52px; }
+.nav-title { font-size:15px; font-weight:700; margin-right:32px; color:var(--accent); }
+.nav-links { display:flex; gap:4px; }
+.nav-link { padding:8px 16px; border:none; background:none; font-size:13px; color:var(--text2); cursor:pointer; border-radius:8px; transition:0.2s; font-weight:500; }
+.nav-link:hover { background:rgba(196,149,106,0.1); color:var(--text); }
+.nav-link.active { background:var(--accent); color:white; }
+
+/* Layout */
+.page { padding-top:52px; }
+.section { display:none; }
+.section.active { display:block; }
+.content { max-width:960px; margin:0 auto; padding:40px 32px 80px; }
+
+/* Typography */
+h1 { font-size:32px; font-weight:700; margin-bottom:8px; }
+.subtitle { font-size:15px; color:var(--text2); margin-bottom:40px; }
+h2 { font-size:24px; font-weight:700; margin-top:40px; margin-bottom:20px; color:var(--accent); }
+h3 { font-size:18px; font-weight:600; margin-top:32px; margin-bottom:16px; color:var(--text); }
+h4 { font-size:15px; font-weight:600; margin-top:20px; margin-bottom:12px; color:var(--text); }
+p { margin-bottom:12px; }
+li { margin-bottom:6px; margin-left:20px; }
+
+/* Components */
+.description-box { background:var(--accent-light); padding:16px; border-radius:var(--radius); margin:20px 0; border-left:4px solid var(--accent); }
+.info-box { background:#E3F2FD; padding:16px; border-radius:var(--radius); margin:20px 0; border-left:4px solid var(--info); }
+.success-box { background:#E8F5E9; padding:16px; border-radius:var(--radius); margin:20px 0; border-left:4px solid var(--success); }
+.warning-box { background:#FFF3E0; padding:16px; border-radius:var(--radius); margin:20px 0; border-left:4px solid var(--warning); }
+.danger-box { background:#FFEBEE; padding:16px; border-radius:var(--radius); margin:20px 0; border-left:4px solid var(--danger); }
+
+.table-container { overflow-x:auto; margin:20px 0; }
+table { width:100%; border-collapse:collapse; }
+thead { background:var(--sidebar-bg); }
+th { padding:12px; text-align:left; font-weight:600; border-bottom:2px solid var(--border); }
+td { padding:12px; border-bottom:1px solid var(--border); }
+tr:hover { background:var(--accent-light); }
+
+code { background:var(--code-bg); color:var(--code-text); padding:4px 8px; border-radius:4px; font-family: 'D2Coding', monospace; font-size:13px; }
+pre { background:var(--code-bg); color:var(--code-text); padding:16px; border-radius:var(--radius); overflow-x:auto; margin:16px 0; line-height:1.5; }
+pre code { background:none; color:inherit; padding:0; }
+
+ul, ol { margin:12px 0; }
+blockquote { border-left:4px solid var(--accent); padding-left:16px; margin:16px 0; color:var(--text2); }
+
+.diagram { background:var(--bg2); border:1px solid var(--border); padding:16px; border-radius:var(--radius); margin:16px 0; text-align:center; }
+.architecture-box { background:var(--bg2); border:1px solid var(--accent); padding:16px; border-radius:var(--radius); margin:12px 0; }
+
+/* Sidebar */
+.sidebar { position:fixed; left:0; top:52px; bottom:0; width:240px; background:var(--sidebar-bg); border-right:1px solid var(--border); overflow-y:auto; padding:20px 16px; }
+.sidebar-item { display:block; padding:8px 12px; margin:4px 0; border-radius:8px; color:var(--text2); text-decoration:none; cursor:pointer; font-size:13px; transition:0.2s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar-item:hover { background:rgba(196,149,106,0.1); color:var(--text); }
+.sidebar-item.active { background:var(--accent); color:white; }
+
+/* Main content area */
+.main { margin-left:240px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { display:none; }
+  .main { margin-left:0; }
+  .content { padding:20px 16px 60px; }
+}
+
+.footer { text-align:center; padding:40px 20px; color:var(--text2); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="top-nav">
+  <div class="nav-title">RAG ChatBot Backend Design</div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showSection(0)">1. 개요</button>
+    <button class="nav-link" onclick="showSection(1)">2. 백엔드 아키텍처</button>
+    <button class="nav-link" onclick="showSection(2)">3. 핵심 컴포넌트</button>
+    <button class="nav-link" onclick="showSection(3)">4. RAG 파이프라인</button>
+    <button class="nav-link" onclick="showSection(4)">5. 데이터 흐름</button>
+    <button class="nav-link" onclick="showSection(5)">6. API 명세</button>
+    <button class="nav-link" onclick="showSection(6)">7. 배포 및 운영</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="sidebar">
+    <div class="sidebar-item active" onclick="showSection(0)">1. 개요</div>
+    <div class="sidebar-item" onclick="showSection(1)">2. 백엔드 아키텍처</div>
+    <div class="sidebar-item" onclick="showSection(2)">3. 핵심 컴포넌트</div>
+    <div class="sidebar-item" onclick="showSection(3)">4. RAG 파이프라인</div>
+    <div class="sidebar-item" onclick="showSection(4)">5. 데이터 흐름</div>
+    <div class="sidebar-item" onclick="showSection(5)">6. API 명세</div>
+    <div class="sidebar-item" onclick="showSection(6)">7. 배포 및 운영</div>
+  </div>
+
+  <div class="main">
+    <!-- Section 1: 개요 -->
+    <div class="section active">
+      <div class="content">
+        <h1>RAG 챗봇 백엔드 상세 설계서</h1>
+        <div class="subtitle">Retrieval-Augmented Generation (RAG) 기반 AI 챗봇의 백엔드 시스템 아키텍처</div>
+        
+        <h2>1. 서비스 개요</h2>
+        
+        <div class="description-box">
+          <strong>RAG 챗봇 서비스</strong>는 대규모 언어 모델(LLM)과 정보 검색 기술을 결합하여 사용자 질문에 대한 정확하고 맥락 기반의 답변을 제공하는 지능형 대화 시스템입니다.
+        </div>
+
+        <h3>1.1 서비스 특징</h3>
+        <ul>
+          <li><strong>정보 검색 기반:</strong> 내부 지식 베이스에서 관련 정보를 검색하여 답변의 정확성을 높입니다</li>
+          <li><strong>맥락 인식:</strong> 사용자의 대화 이력을 활용하여 자연스러운 다중 턴 대화를 지원합니다</li>
+          <li><strong>확장성:</strong> 새로운 지식 소스의 추가가 용이한 모듈화된 아키텍처입니다</li>
+          <li><strong>추적 가능성:</strong> 모든 응답에 대한 참고 출처를 제시하여 신뢰성을 보장합니다</li>
+        </ul>
+
+        <h3>1.2 핵심 기술 스택</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>계층</th>
+              <th>기술</th>
+              <th>설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>웹 프레임워크</strong></td>
+              <td>FastAPI</td>
+              <td>고성능 Python 웹 프레임워크</td>
+            </tr>
+            <tr>
+              <td><strong>LLM</strong></td>
+              <td>OpenAI GPT / Claude API</td>
+              <td>대규모 언어 모델</td>
+            </tr>
+            <tr>
+              <td><strong>벡터 데이터베이스</strong></td>
+              <td>Pinecone / Qdrant</td>
+              <td>의미 기반 정보 검색</td>
+            </tr>
+            <tr>
+              <td><strong>임베딩</strong></td>
+              <td>OpenAI Embeddings</td>
+              <td>텍스트 벡터화</td>
+            </tr>
+            <tr>
+              <td><strong>관계형 DB</strong></td>
+              <td>PostgreSQL</td>
+              <td>구조화된 데이터 저장</td>
+            </tr>
+            <tr>
+              <td><strong>캐싱</strong></td>
+              <td>Redis</td>
+              <td>응답 속도 개선</td>
+            </tr>
+            <tr>
+              <td><strong>메시지 큐</strong></td>
+              <td>RabbitMQ / Celery</td>
+              <td>비동기 작업 처리</td>
+            </tr>
+            <tr>
+              <td><strong>모니터링</strong></td>
+              <td>Prometheus + Grafana</td>
+              <td>시스템 메트릭 수집 및 시각화</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>1.3 서비스 목표</h3>
+        <div class="success-box">
+          <strong>기술적 목표:</strong>
+          <ul>
+            <li>응답 시간: 평균 < 2초 (P95 < 5초)</li>
+            <li>가용성: 99.9% uptime</li>
+            <li>정확도: 사용자 만족도 > 85%</li>
+          </ul>
+        </div>
+
+        <h3>1.4 주요 사용 사례</h3>
+        <ul>
+          <li><strong>고객 지원:</strong> FAQ 및 제품 문서 기반의 자동 고객 응답</li>
+          <li><strong>내부 지식 검색:</strong> 직원들의 빠른 정보 접근</li>
+          <li><strong>연구 보조:</strong> 학술 자료 검색 및 요약</li>
+          <li><strong>콘텐츠 생성:</strong> 기사, 보고서 작성 지원</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 2: 백엔드 아키텍처 -->
+    <div class="section">
+      <div class="content">
+        <h1>2. 백엔드 아키텍처</h1>
+
+        <h2>2.1 시스템 아키텍처 다이어그램</h2>
+        <div class="diagram">
+          <pre>
+┌─────────────────────────────────────────────────────────────┐
+│                        클라이언트 계층                        │
+│  (웹 브라우저, 모바일 앱, 제3자 API 클라이언트)              │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+          ┌────────────────┴────────────────┐
+          │                                 │
+    ┌─────▼──────┐                  ┌──────▼──────┐
+    │ API Gateway│                  │Load Balancer│
+    │ (Kong)     │                  │ (Nginx)     │
+    └─────┬──────┘                  └──────┬──────┘
+          └────────────────┬────────────────┘
+                           │
+          ┌────────────────▼────────────────┐
+          │   FastAPI 백엔드 (다중 인스턴스) │
+          │  ┌──────────────────────────┐  │
+          │  │ 라우터 및 미들웨어         │  │
+          │  └──────────────────────────┘  │
+          │  ┌──────────────────────────┐  │
+          │  │ 비즈니스 로직 계층        │  │
+          │  └──────────────────────────┘  │
+          └────────┬───────────────────────┘
+                   │
+        ┌──────────┼──────────┬──────────┐
+        │          │          │          │
+    ┌───▼──┐  ┌───▼──┐  ┌───▼──┐  ┌───▼──┐
+    │Redis │  │PG DB │  │Vec DB│  │File  │
+    │Cache │  │      │  │      │  │Store │
+    └──────┘  └──────┘  └──────┘  └──────┘
+          </pre>
+        </div>
+
+        <h2>2.2 아키텍처 계층 설명</h2>
+        
+        <h3>2.2.1 프리젠테이션 계층 (Presentation Layer)</h3>
+        <p>클라이언트 요청을 수신하고 응답을 반환하는 계층입니다.</p>
+        <ul>
+          <li><strong>API Gateway:</strong> 모든 API 요청의 진입점 (Kong 또는 Nginx)</li>
+          <li><strong>인증/인가:</strong> JWT, OAuth2 기반 보안</li>
+          <li><strong>속도 제한:</strong> DDoS 방지 및 공정한 자원 배분</li>
+          <li><strong>요청/응답 변환:</strong> 프로토콜 변환 및 직렬화</li>
+        </ul>
+
+        <h3>2.2.2 비즈니스 로직 계층 (Business Logic Layer)</h3>
+        <p>핵심 기능을 구현하는 계층입니다.</p>
+        <ul>
+          <li><strong>대화 관리:</strong> 세션, 메시지 히스토리 관리</li>
+          <li><strong>RAG 엔진:</strong> 정보 검색 및 생성</li>
+          <li><strong>데이터 검증:</strong> 입력 데이터 검증</li>
+          <li><strong>비즈니스 규칙:</strong> 도메인 로직</li>
+        </ul>
+
+        <h3>2.2.3 데이터 접근 계층 (Data Access Layer)</h3>
+        <p>데이터 저장소와의 상호작용을 담당합니다.</p>
+        <ul>
+          <li><strong>ORM:</strong> SQLAlchemy를 이용한 DB 추상화</li>
+          <li><strong>벡터 DB 클라이언트:</strong> 의미 검색 쿼리</li>
+          <li><strong>캐시 클라이언트:</strong> Redis 연결</li>
+          <li><strong>파일 시스템:</strong> 문서 및 이미지 저장</li>
+        </ul>
+
+        <h2>2.3 마이크로서비스 구조</h2>
+        <p>선택적으로 마이크로서비스 아키텍처로 확장할 수 있습니다:</p>
+        <ul>
+          <li><strong>인증 서비스:</strong> 사용자 인증/인가</li>
+          <li><strong>대화 서비스:</strong> 메시지 및 세션 관리</li>
+          <li><strong>검색 서비스:</strong> 벡터 검색 및 유사도 계산</li>
+          <li><strong>생성 서비스:</strong> LLM 호출 및 응답 생성</li>
+          <li><strong>분석 서비스:</strong> 사용자 행동 분석</li>
+        </ul>
+
+        <h2>2.4 배포 아키텍처</h2>
+        <div class="architecture-box">
+          <strong>클라우드 환경 (AWS, GCP, Azure 등)</strong>
+          <ul>
+            <li>쿠버네티스 클러스터: 컨테이너 오케스트레이션</li>
+            <li>Auto Scaling: 부하에 따른 자동 확장</li>
+            <li>로드 밸런싱: 트래픽 분산</li>
+            <li>네트워크 격리: VPC, 보안 그룹</li>
+            <li>저장소: S3/GCS (객체 저장소), RDS (관리형 DB)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: 핵심 컴포넌트 -->
+    <div class="section">
+      <div class="content">
+        <h1>3. 핵심 컴포넌트</h1>
+
+        <h2>3.1 컴포넌트 개요</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>컴포넌트</th>
+              <th>역할</th>
+              <th>구현 기술</th>
+              <th>확장성</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>API 서버</strong></td>
+              <td>HTTP 요청 처리</td>
+              <td>FastAPI + Uvicorn</td>
+              <td>높음</td>
+            </tr>
+            <tr>
+              <td><strong>인증 모듈</strong></td>
+              <td>사용자 인증/인가</td>
+              <td>JWT + FastAPI Security</td>
+              <td>중간</td>
+            </tr>
+            <tr>
+              <td><strong>세션 관리</strong></td>
+              <td>사용자 세션 추적</td>
+              <td>Redis + SQLAlchemy</td>
+              <td>높음</td>
+            </tr>
+            <tr>
+              <td><strong>RAG 엔진</strong></td>
+              <td>검색 및 생성</td>
+              <td>LangChain + Vector DB</td>
+              <td>높음</td>
+            </tr>
+            <tr>
+              <td><strong>캐싱 계층</strong></td>
+              <td>성능 최적화</td>
+              <td>Redis</td>
+              <td>높음</td>
+            </tr>
+            <tr>
+              <td><strong>비동기 큐</strong></td>
+              <td>백그라운드 작업</td>
+              <td>Celery + RabbitMQ</td>
+              <td>높음</td>
+            </tr>
+            <tr>
+              <td><strong>로깅</strong></td>
+              <td>시스템 모니터링</td>
+              <td>ELK Stack</td>
+              <td>높음</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>3.2 세부 컴포넌트 설명</h2>
+
+        <h3>3.2.1 API 서버</h3>
+        <p>FastAPI를 기반으로 한 고성능 웹 서버입니다.</p>
+        <div class="info-box">
+          <strong>특징:</strong>
+          <ul>
+            <li>자동 API 문서화 (Swagger/OpenAPI)</li>
+            <li>비동기/대기(async/await) 지원</li>
+            <li>타입 안전성 (Pydantic 데이터 검증)</li>
+            <li>미들웨어 지원 (CORS, 로깅, 모니터링)</li>
+          </ul>
+        </div>
+
+        <h3>3.2.2 인증 모듈</h3>
+        <p>JWT 기반의 보안 인증 시스템입니다.</p>
+        <pre><code>
+# 인증 흐름
+1. 사용자 로그인 → JWT 토큰 발급
+2. 각 요청에 토큰 포함
+3. 토큰 검증 및 권한 확인
+4. 토큰 만료 시 리프레시
+        </code></pre>
+
+        <h3>3.2.3 RAG 엔진</h3>
+        <p>검색과 생성을 통합하는 핵심 엔진입니다.</p>
+        <div class="architecture-box">
+          <strong>RAG 파이프라인:</strong>
+          <ol>
+            <li>사용자 쿼리 임베딩</li>
+            <li>벡터 DB에서 관련 문서 검색</li>
+            <li>검색된 문서로 프롬프트 구성</li>
+            <li>LLM에 프롬프트 전달</li>
+            <li>생성된 응답 반환</li>
+          </ol>
+        </div>
+
+        <h3>3.2.4 캐싱 계층</h3>
+        <p>Redis를 이용한 다층 캐싱 전략입니다.</p>
+        <ul>
+          <li><strong>쿼리 결과 캐싱:</strong> 자주 검색되는 쿼리</li>
+          <li><strong>임베딩 캐싱:</strong> 이미 계산된 임베딩</li>
+          <li><strong>생성 결과 캐싱:</strong> 동일 질문에 대한 응답</li>
+          <li><strong>세션 캐싱:</strong> 사용자 세션 정보</li>
+        </ul>
+
+        <h3>3.2.5 비동기 작업 처리</h3>
+        <p>Celery를 이용한 백그라운드 작업 처리입니다.</p>
+        <ul>
+          <li>문서 임베딩 계산</li>
+          <li>대량 데이터 임포트</li>
+          <li>주기적인 캐시 갱신</li>
+          <li>분석 리포트 생성</li>
+        </ul>
+
+        <h2>3.3 외부 서비스 통합</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>서비스</th>
+              <th>목적</th>
+              <th>통합 방식</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenAI API</td>
+              <td>LLM 및 임베딩</td>
+              <td>REST API 호출</td>
+            </tr>
+            <tr>
+              <td>Pinecone</td>
+              <td>벡터 데이터베이스</td>
+              <td>Python SDK</td>
+            </tr>
+            <tr>
+              <td>Google Analytics</td>
+              <td>사용자 행동 분석</td>
+              <td>REST API</td>
+            </tr>
+            <tr>
+              <td>Slack</td>
+              <td>알림 및 로깅</td>
+              <td>Webhook</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 4: RAG 파이프라인 -->
+    <div class="section">
+      <div class="content">
+        <h1>4. RAG 파이프라인</h1>
+
+        <h2>4.1 RAG 개념 설명</h2>
+        <div class="description-box">
+          <strong>Retrieval-Augmented Generation (RAG)</strong>는 대규모 언어 모델(LLM)이 학습 데이터에 없는 새로운 정보에 대한 질문에 답할 수 있도록 하는 기술입니다. 검색(Retrieval)과 생성(Generation)을 결합하여 더 정확하고 신뢰할 수 있는 응답을 생성합니다.
+        </div>
+
+        <h2>4.2 RAG 파이프라인 상세</h2>
+
+        <h3>4.2.1 문서 준비 단계 (Indexing)</h3>
+        <p>학습 데이터를 벡터 DB에 저장하기 위한 준비 과정입니다.</p>
+        <div class="architecture-box">
+          <strong>단계별 프로세스:</strong>
+          <ol>
+            <li>
+              <strong>문서 수집:</strong> PDF, 웹 페이지, DB 등에서 문서 수집
+              <ul>
+                <li>웹 크롤링: Beautiful Soup, Selenium</li>
+                <li>PDF 파싱: PyPDF2, pdfplumber</li>
+                <li>DB 쿼리: SQLAlchemy ORM</li>
+              </ul>
+            </li>
+            <li>
+              <strong>전처리:</strong> 텍스트 정제 및 정규화
+              <ul>
+                <li>특수 문자 제거</li>
+                <li>공백 정규화</li>
+                <li>언어 감지 및 필터링</li>
+              </ul>
+            </li>
+            <li>
+              <strong>청킹:</strong> 긴 문서를 작은 단위로 분할
+              <ul>
+                <li>고정 크기 청킹: 문자 수 기반</li>
+                <li>의미 기반 청킹: 문장/문단 단위</li>
+                <li>오버래핑: 컨텍스트 연속성 보장</li>
+              </ul>
+            </li>
+            <li>
+              <strong>임베딩:</strong> 텍스트를 벡터로 변환
+              <ul>
+                <li>OpenAI Embeddings API (1536차원)</li>
+                <li>또는 로컬 모델: sentence-transformers</li>
+              </ul>
+            </li>
+            <li>
+              <strong>저장:</strong> 벡터와 메타데이터를 DB에 저장
+              <ul>
+                <li>벡터 DB: Pinecone, Qdrant, Weaviate</li>
+                <li>메타데이터: PostgreSQL</li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+
+        <h3>4.2.2 쿼리 처리 단계 (Retrieval)</h3>
+        <p>사용자 질문에 관련된 문서를 검색하는 과정입니다.</p>
+        <div class="architecture-box">
+          <strong>검색 절차:</strong>
+          <ol>
+            <li><strong>쿼리 임베딩:</strong> 사용자 질문을 벡터로 변환</li>
+            <li><strong>벡터 유사도 검색:</strong> 코사인 유사도로 가장 유사한 청크 선택</li>
+            <li><strong>메타데이터 필터링:</strong> 시간, 카테고리 등으로 추가 필터링</li>
+            <li><strong>재랭킹:</strong> BM25 또는 크로스 인코더로 결과 재정렬</li>
+            <li><strong>결과 반환:</strong> 상위 K개 청크 반환 (보통 K=5-10)</li>
+          </ol>
+        </div>
+
+        <h3>4.2.3 응답 생성 단계 (Generation)</h3>
+        <p>검색된 정보를 기반으로 최종 응답을 생성합니다.</p>
+        <div class="architecture-box">
+          <strong>생성 절차:</strong>
+          <ol>
+            <li><strong>프롬프트 구성:</strong> 검색 결과를 기반으로 프롬프트 생성</li>
+            <li><strong>컨텍스트 추가:</strong> 대화 히스토리 포함</li>
+            <li><strong>LLM 호출:</strong> OpenAI GPT 또는 Claude API 호출</li>
+            <li><strong>응답 처리:</strong> 토큰 스트리밍, 형식화</li>
+            <li><strong>출처 추적:</strong> 사용된 문서 정보 기록</li>
+          </ol>
+        </div>
+
+        <h2>4.3 고급 RAG 기법</h2>
+
+        <h3>4.3.1 Multi-Query RAG</h3>
+        <p>여러 쿼리 변형으로 검색 범위를 확대합니다.</p>
+        <div class="info-box">
+          <strong>구현 방식:</strong>
+          <ul>
+            <li>LLM으로 원본 쿼리의 5-10개 변형 생성</li>
+            <li>각 변형으로 벡터 검색 수행</li>
+            <li>중복을 제거하고 통합</li>
+          </ul>
+        </div>
+
+        <h3>4.3.2 Hierarchical RAG</h3>
+        <p>계층적 문서 구조를 활용합니다.</p>
+        <ul>
+          <li>문서 → 섹션 → 청크 단계적 검색</li>
+          <li>먼저 문서 수준에서 검색, 필요시 더 상세한 청크 검색</li>
+        </ul>
+
+        <h3>4.3.3 Hybrid RAG</h3>
+        <p>벡터 검색과 키워드 검색을 결합합니다.</p>
+        <ul>
+          <li>의미 기반 벡터 검색: 의도와 개념 캡처</li>
+          <li>키워드 검색 (BM25): 정확한 용어 매칭</li>
+          <li>결과 통합: RRF(Reciprocal Rank Fusion)</li>
+        </ul>
+
+        <h2>4.4 RAG 성능 최적화</h2>
+
+        <h3>4.4.1 청킹 전략</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>방식</th>
+              <th>장점</th>
+              <th>단점</th>
+              <th>추천</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>고정 크기</td>
+              <td>구현 단순</td>
+              <td>의미 무시</td>
+              <td>일반 텍스트</td>
+            </tr>
+            <tr>
+              <td>문장 단위</td>
+              <td>의미 보존</td>
+              <td>일관성 부족</td>
+              <td>대화식 콘텐츠</td>
+            </tr>
+            <tr>
+              <td>문단 단위</td>
+              <td>배경 정보 포함</td>
+              <td>청크 크기 불균등</td>
+              <td>기술 문서</td>
+            </tr>
+            <tr>
+              <td>의미 청킹</td>
+              <td>최적의 의미 보존</td>
+              <td>계산 비용 높음</td>
+              <td>구조화된 문서</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.4.2 임베딩 모델 선택</h3>
+        <ul>
+          <li><strong>OpenAI Embeddings:</strong> 성능 우수, 비용 발생</li>
+          <li><strong>Sentence Transformers:</strong> 무료, 로컬 실행, 약간의 성능 손실</li>
+          <li><strong>Voyage AI:</strong> 긴 문맥 처리 최적화</li>
+        </ul>
+
+        <h3>4.4.3 검색 결과 개선</h3>
+        <ul>
+          <li><strong>재랭킹:</strong> 초기 검색 후 크로스 인코더로 재정렬</li>
+          <li><strong>필터링:</strong> 메타데이터 기반 사전 필터링</li>
+          <li><strong>앙상블:</strong> 여러 검색 방법 결합</li>
+          <li><strong>피드백 루프:</strong> 사용자 피드백으로 개선</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Section 5: 데이터 흐름 -->
+    <div class="section">
+      <div class="content">
+        <h1>5. 데이터 흐름</h1>
+
+        <h2>5.1 전체 데이터 흐름도</h2>
+        <div class="diagram">
+          <pre>
+사용자 입력
+   │
+   ▼
+┌──────────────────────┐
+│  API 수신            │
+│  (메시지 처리)       │
+└──────┬───────────────┘
+       │
+       ▼
+   ┌───────────────────────┐
+   │  인증 검증            │
+   │  (JWT 토큰 확인)      │
+   └─────┬─────────────────┘
+         │
+         ▼
+    ┌──────────────────┐
+    │  캐시 확인       │
+    │  (Redis)         │
+    └────┬─────┬──────┘
+         │     │
+       命中   미命중
+         │     │
+         ▼     ▼
+      반환   ┌──────────────────┐
+           │  임베딩           │
+           │  (OpenAI API)    │
+           └────┬─────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  벡터 검색         │
+          │  (Pinecone)       │
+          └─────┬──────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  문서 검색         │
+          │  (PostgreSQL)      │
+          └─────┬──────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  프롬프트 구성     │
+          │  (LLM 입력)        │
+          └─────┬──────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  LLM 호출          │
+          │  (OpenAI/Claude)   │
+          └─────┬──────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  응답 처리         │
+          │  (형식화/스트리밍) │
+          └─────┬──────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  캐시 저장         │
+          │  (Redis)           │
+          └─────┬──────────────┘
+                │
+                ▼
+          ┌────────────────────┐
+          │  응답 반환         │
+          │  (클라이언트)      │
+          └────────────────────┘
+          </pre>
+        </div>
+
+        <h2>5.2 세션 데이터 흐름</h2>
+        <p>사용자 세션과 메시지 히스토리 관리 방식입니다.</p>
+        <div class="architecture-box">
+          <strong>세션 생명주기:</strong>
+          <ol>
+            <li><strong>생성:</strong> 새 사용자 로그인 시 세션 생성</li>
+            <li><strong>저장:</strong> Redis에 세션 데이터 캐싱, PostgreSQL에 영구 저장</li>
+            <li><strong>메시지 추가:</strong> 각 턴마다 메시지 히스토리 업데이트</li>
+            <li><strong>컨텍스트 유지:</strong> 최근 N개 메시지를 LLM 프롬프트에 포함</li>
+            <li><strong>종료:</strong> 사용자 로그아웃 또는 타임아웃 시 세션 종료</li>
+          </ol>
+        </div>
+
+        <h2>5.3 메시지 흐름 (실시간)</h2>
+        <div class="architecture-box">
+          <strong>WebSocket 기반 실시간 통신:</strong>
+          <ol>
+            <li>클라이언트가 메시지 전송</li>
+            <li>백엔드에서 즉시 메시지 ACK 반환</li>
+            <li>비동기로 RAG 처리 시작</li>
+            <li>생성된 응답을 스트리밍으로 클라이언트에 전송 (청크 단위)</li>
+            <li>최종 응답 완료 후 메타데이터 전송</li>
+          </ol>
+        </div>
+
+        <h2>5.4 데이터 저장소별 저장 정보</h2>
+        
+        <h3>5.4.1 PostgreSQL</h3>
+        <p>구조화된 관계형 데이터 저장:</p>
+        <ul>
+          <li><strong>users:</strong> 사용자 정보, 인증 정보</li>
+          <li><strong>sessions:</strong> 대화 세션</li>
+          <li><strong>messages:</strong> 메시지 히스토리</li>
+          <li><strong>documents:</strong> 문서 메타데이터</li>
+          <li><strong>usage_logs:</strong> API 사용량</li>
+        </ul>
+
+        <h3>5.4.2 Pinecone (벡터 DB)</h3>
+        <p>의미 검색을 위한 벡터 저장:</p>
+        <ul>
+          <li><strong>벡터:</strong> 문서 청크의 임베딩 (1536차원)</li>
+          <li><strong>메타데이터:</strong> 문서 ID, 소스, 생성일</li>
+          <li><strong>인덱스:</strong> 빠른 유사도 검색</li>
+        </ul>
+
+        <h3>5.4.3 Redis</h3>
+        <p>캐싱 및 세션 저장:</p>
+        <ul>
+          <li><strong>세션 데이터:</strong> 사용자 세션 (1시간 TTL)</li>
+          <li><strong>쿼리 결과:</strong> 자주 검색되는 쿼리 (24시간 TTL)</li>
+          <li><strong>임베딩 캐시:</strong> 계산된 임베딩 (7일 TTL)</li>
+        </ul>
+
+        <h2>5.5 에러 처리 및 재시도</h2>
+        <div class="warning-box">
+          <strong>에러 타입별 처리 전략:</strong>
+          <ul>
+            <li><strong>네트워크 에러:</strong> 지수 백오프로 3회 재시도</li>
+            <li><strong>API 속도 제한:</strong> 요청 대기열 관리</li>
+            <li><strong>데이터베이스 에러:</strong> 트랜잭션 롤백 및 로깅</li>
+            <li><strong>LLM 에러:</strong> 폴백 모델 사용</li>
+          </ul>
+        </div>
+
+        <h2>5.6 모니터링 및 로깅</h2>
+        <p>모든 데이터 흐름 단계에서 로깅 및 모니터링이 수행됩니다.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>메트릭</th>
+              <th>수집 방식</th>
+              <th>저장소</th>
+              <th>알림 조건</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>응답 시간</td>
+              <td>각 API 엔드포인트 측정</td>
+              <td>Prometheus</td>
+              <td>P95 > 5초</td>
+            </tr>
+            <tr>
+              <td>에러율</td>
+              <td>Exception 로깅</td>
+              <td>ELK Stack</td>
+              <td>에러율 > 1%</td>
+            </tr>
+            <tr>
+              <td>토큰 사용량</td>
+              <td>LLM API 응답</td>
+              <td>PostgreSQL</td>
+              <td>예산 초과</td>
+            </tr>
+            <tr>
+              <td>캐시 히트율</td>
+              <td>Redis 명령</td>
+              <td>Prometheus</td>
+              <td>히트율 < 50%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 6: API 명세 -->
+    <div class="section">
+      <div class="content">
+        <h1>6. API 명세</h1>
+
+        <h2>6.1 API 설계 원칙</h2>
+        <div class="description-box">
+          <ul>
+            <li><strong>RESTful:</strong> 표준 HTTP 메서드와 상태 코드 사용</li>
+            <li><strong>JSON 기반:</strong> 모든 요청/응답은 JSON 형식</li>
+            <li><strong>버전 관리:</strong> URL에 API 버전 포함 (예: /api/v1/)</li>
+            <li><strong>보안:</strong> 모든 요청에 인증 필요</li>
+          </ul>
+        </div>
+
+        <h2>6.2 주요 API 엔드포인트</h2>
+
+        <h3>6.2.1 인증 API</h3>
+        
+        <div class="architecture-box">
+          <strong>POST /api/v1/auth/login</strong>
+          <p><em>사용자 로그인</em></p>
+          <p><strong>요청:</strong></p>
+          <pre><code>{
+  "email": "user@example.com",
+  "password": "securepassword"
+}</code></pre>
+          <p><strong>응답 (200):</strong></p>
+          <pre><code>{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user": {
+    "id": "user_123",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}</code></pre>
+        </div>
+
+        <h3>6.2.2 대화 API</h3>
+
+        <div class="architecture-box">
+          <strong>POST /api/v1/chat/messages</strong>
+          <p><em>새 메시지 전송</em></p>
+          <p><strong>요청:</strong></p>
+          <pre><code>{
+  "session_id": "sess_123abc",
+  "message": "쿠버네티스란 무엇인가?",
+  "max_tokens": 1000,
+  "temperature": 0.7
+}</code></pre>
+          <p><strong>응답 (200):</strong></p>
+          <pre><code>{
+  "message_id": "msg_456def",
+  "session_id": "sess_123abc",
+  "content": "쿠버네티스는 오픈소스 컨테이너 오케스트레이션 플랫폼으로...",
+  "sources": [
+    {
+      "document_id": "doc_1",
+      "title": "Kubernetes 개요",
+      "chunk": "...",
+      "similarity_score": 0.92
+    }
+  ],
+  "metadata": {
+    "tokens_used": 256,
+    "generation_time": 2.34,
+    "model": "gpt-4"
+  }
+}</code></pre>
+        </div>
+
+        <h3>6.2.3 세션 API</h3>
+
+        <div class="architecture-box">
+          <strong>POST /api/v1/sessions</strong>
+          <p><em>새 대화 세션 생성</em></p>
+          <p><strong>요청:</strong></p>
+          <pre><code>{
+  "title": "프로젝트 논의",
+  "metadata": {"project_id": "proj_789"}
+}</code></pre>
+          <p><strong>응답 (201):</strong></p>
+          <pre><code>{
+  "session_id": "sess_123abc",
+  "title": "프로젝트 논의",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}</code></pre>
+        </div>
+
+        <div class="architecture-box">
+          <strong>GET /api/v1/sessions/{session_id}/messages</strong>
+          <p><em>세션의 메시지 히스토리 조회</em></p>
+          <p><strong>응답 (200):</strong></p>
+          <pre><code>{
+  "session_id": "sess_123abc",
+  "messages": [
+    {
+      "message_id": "msg_001",
+      "role": "user",
+      "content": "안녕하세요",
+      "timestamp": "2024-01-15T10:30:00Z"
+    },
+    {
+      "message_id": "msg_002",
+      "role": "assistant",
+      "content": "안녕하세요! 무엇을 도와드릴까요?",
+      "timestamp": "2024-01-15T10:30:05Z"
+    }
+  ],
+  "total_count": 2
+}</code></pre>
+        </div>
+
+        <h3>6.2.4 검색 API</h3>
+
+        <div class="architecture-box">
+          <strong>POST /api/v1/search</strong>
+          <p><em>벡터 기반 문서 검색</em></p>
+          <p><strong>요청:</strong></p>
+          <pre><code>{
+  "query": "기계학습 모델 학습 방법",
+  "top_k": 5,
+  "filters": {
+    "category": "AI",
+    "created_after": "2023-01-01"
+  }
+}</code></pre>
+          <p><strong>응답 (200):</strong></p>
+          <pre><code>{
+  "results": [
+    {
+      "document_id": "doc_1",
+      "chunk_index": 0,
+      "title": "기계학습 가이드",
+      "content": "기계학습은 데이터로부터 패턴을 학습하는...",
+      "similarity_score": 0.95,
+      "source_url": "/documents/ml-guide.pdf"
+    }
+  ],
+  "search_time_ms": 45
+}</code></pre>
+        </div>
+
+        <h3>6.2.5 문서 관리 API</h3>
+
+        <div class="architecture-box">
+          <strong>POST /api/v1/documents/upload</strong>
+          <p><em>새 문서 업로드</em></p>
+          <p><strong>요청: (multipart/form-data)</strong></p>
+          <pre><code>file: [PDF 파일]
+metadata: {"title": "기술 문서", "category": "Engineering"}</code></pre>
+          <p><strong>응답 (202):</strong></p>
+          <pre><code>{
+  "document_id": "doc_123",
+  "status": "processing",
+  "progress": 0,
+  "message": "문서 처리 중입니다..."
+}</code></pre>
+        </div>
+
+        <div class="architecture-box">
+          <strong>GET /api/v1/documents/{document_id}</strong>
+          <p><em>문서 상세 조회</em></p>
+          <p><strong>응답 (200):</strong></p>
+          <pre><code>{
+  "document_id": "doc_123",
+  "title": "기술 문서",
+  "category": "Engineering",
+  "status": "indexed",
+  "chunks_count": 42,
+  "created_at": "2024-01-15T10:30:00Z",
+  "file_size": 2048576,
+  "file_url": "s3://bucket/documents/doc_123.pdf"
+}</code></pre>
+        </div>
+
+        <h2>6.3 응답 코드</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>코드</th>
+              <th>설명</th>
+              <th>예시</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>200</td>
+              <td>성공</td>
+              <td>GET 요청 성공</td>
+            </tr>
+            <tr>
+              <td>201</td>
+              <td>생성됨</td>
+              <td>리소스 생성 성공</td>
+            </tr>
+            <tr>
+              <td>202</td>
+              <td>수락됨</td>
+              <td>비동기 작업 시작</td>
+            </tr>
+            <tr>
+              <td>400</td>
+              <td>잘못된 요청</td>
+              <td>필수 필드 누락</td>
+            </tr>
+            <tr>
+              <td>401</td>
+              <td>인증 필요</td>
+              <td>토큰 누락 또는 만료</td>
+            </tr>
+            <tr>
+              <td>403</td>
+              <td>권한 없음</td>
+              <td>다른 사용자의 자원 접근</td>
+            </tr>
+            <tr>
+              <td>429</td>
+              <td>요청 초과</td>
+              <td>속도 제한 초과</td>
+            </tr>
+            <tr>
+              <td>500</td>
+              <td>서버 에러</td>
+              <td>예기치 않은 에러</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>6.4 오류 응답 형식</h2>
+        <div class="danger-box">
+          <pre><code>{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "입력 값이 유효하지 않습니다",
+    "details": [
+      {
+        "field": "message",
+        "error": "메시지는 1자 이상이어야 합니다"
+      }
+    ]
+  }
+}</code></pre>
+        </div>
+
+        <h2>6.5 인증</h2>
+        <p>모든 API 요청의 Authorization 헤더에 JWT 토큰 포함:</p>
+        <pre><code>Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code></pre>
+      </div>
+    </div>
+
+    <!-- Section 7: 배포 및 운영 -->
+    <div class="section">
+      <div class="content">
+        <h1>7. 배포 및 운영</h1>
+
+        <h2>7.1 배포 아키텍처</h2>
+
+        <div class="diagram">
+          <pre>
+┌──────────────────────────────────────────────────────────┐
+│                   클라우드 환경 (AWS)                      │
+│  ┌──────────────────────────────────────────────────┐    │
+│  │              VPC (Virtual Private Cloud)         │    │
+│  │  ┌────────────────────────────────────────────┐ │    │
+│  │  │          쿠버네티스 클러스터                  │ │    │
+│  │  │  ┌──────────────────────────────────────┐ │ │    │
+│  │  │  │  서비스 Pod (다중 레플리카)           │ │ │    │
+│  │  │  │  - FastAPI 앱: 3개 인스턴스         │ │ │    │
+│  │  │  │  - Worker: 5개 인스턴스             │ │ │    │
+│  │  │  │  - Nginx Ingress: 2개 레플리카      │ │ │    │
+│  │  │  └──────────────────────────────────────┘ │ │    │
+│  │  │  ┌──────────────────────────────────────┐ │ │    │
+│  │  │  │  네트워크 & 스토리지                   │ │ │    │
+│  │  │  │  - Service (로드밸런싱)               │ │ │    │
+│  │  │  │  - PVC (영구 저장소)                  │ │ │    │
+│  │  │  │  - ConfigMap (설정)                   │ │ │    │
+│  │  │  └──────────────────────────────────────┘ │ │    │
+│  │  └────────────────────────────────────────────┘ │    │
+│  │  ┌────────────────────────────────────────────┐ │    │
+│  │  │        관리 서비스                          │ │    │
+│  │  │  - RDS PostgreSQL                         │ │    │
+│  │  │  - ElastiCache Redis                      │ │    │
+│  │  │  - S3 (문서 저장소)                        │ │    │
+│  │  │  - CloudWatch (모니터링)                   │ │    │
+│  │  └────────────────────────────────────────────┘ │    │
+│  └──────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────┘
+          </pre>
+        </div>
+
+        <h2>7.2 배포 프로세스</h2>
+
+        <h3>7.2.1 CI/CD 파이프라인</h3>
+        <div class="architecture-box">
+          <strong>GitHub Actions 기반 자동화:</strong>
+          <ol>
+            <li><strong>코드 푸시:</strong> Git에 코드 커밋</li>
+            <li><strong>테스트:</strong> pytest 실행 (커버리지 > 80%)</li>
+            <li><strong>린팅:</strong> pylint, black, mypy로 코드 검사</li>
+            <li><strong>빌드:</strong> Docker 이미지 생성</li>
+            <li><strong>푸시:</strong> ECR에 이미지 푸시</li>
+            <li><strong>배포:</strong> ArgoCD로 k8s 업데이트 (GitOps)</li>
+            <li><strong>검증:</strong> 헬스 체크 및 스모크 테스트</li>
+            <li><strong>모니터링:</strong> 알림 설정 및 메트릭 수집</li>
+          </ol>
+        </div>
+
+        <h3>7.2.2 배포 전략</h3>
+        <ul>
+          <li><strong>Blue-Green:</strong> 일부 트래픽을 새 버전으로 라우팅</li>
+          <li><strong>Canary:</strong> 5% → 25% → 50% → 100% 점진적 배포</li>
+          <li><strong>로롤백:</strong> 문제 발생 시 이전 버전으로 즉시 복귀</li>
+        </ul>
+
+        <h2>7.3 모니터링 및 로깅</h2>
+
+        <h3>7.3.1 메트릭 수집 (Prometheus)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>메트릭</th>
+              <th>의미</th>
+              <th>임계값</th>
+              <th>알림</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>http_request_duration_seconds</td>
+              <td>요청 응답 시간</td>
+              <td>P95 > 5초</td>
+              <td>경고</td>
+            </tr>
+            <tr>
+              <td>http_requests_total</td>
+              <td>전체 요청 수</td>
+              <td>분당 < 100</td>
+              <td>비정상 요청</td>
+            </tr>
+            <tr>
+              <td>http_request_errors_total</td>
+              <td>에러 요청 수</td>
+              <td>> 1%</td>
+              <td>심각</td>
+            </tr>
+            <tr>
+              <td>vector_db_query_time_ms</td>
+              <td>벡터 검색 시간</td>
+              <td>> 500ms</td>
+              <td>경고</td>
+            </tr>
+            <tr>
+              <td>cache_hit_ratio</td>
+              <td>캐시 히트율</td>
+              <td>< 50%</td>
+              <td>경고</td>
+            </tr>
+            <tr>
+              <td>db_connection_pool_usage</td>
+              <td>DB 연결 풀 사용율</td>
+              <td>> 80%</td>
+              <td>경고</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>7.3.2 로깅 (ELK Stack)</h3>
+        <p>Elasticsearch + Logstash + Kibana 스택으로 통합 로깅</p>
+        <ul>
+          <li><strong>애플리케이션 로그:</strong> 요청, 에러, 디버그</li>
+          <li><strong>시스템 로그:</strong> 쿠버네티스, 인프라 메트릭</li>
+          <li><strong>보안 로그:</strong> 인증, 권한 변경</li>
+          <li><strong>비즈니스 로그:</strong> 사용자 행동, API 호출</li>
+        </ul>
+
+        <h3>7.3.3 알림 규칙</h3>
+        <div class="warning-box">
+          <strong>심각도별 알림:</strong>
+          <ul>
+            <li><strong>치명:</strong> Slack #critical, PagerDuty 호출</li>
+            <li><strong>경고:</strong> Slack #alerts, 이메일</li>
+            <li><strong>정보:</strong> 로그 기록만</li>
+          </ul>
+        </div>
+
+        <h2>7.4 성능 최적화</h2>
+
+        <h3>7.4.1 데이터베이스 최적화</h3>
+        <ul>
+          <li><strong>인덱싱:</strong> 자주 검색되는 필드에 인덱스</li>
+          <li><strong>쿼리 최적화:</strong> EXPLAIN ANALYZE로 느린 쿼리 식별</li>
+          <li><strong>연결 풀링:</strong> PgBouncer로 연결 재사용</li>
+          <li><strong>레플리카:</strong> 읽기 전용 복제본으로 읽기 분산</li>
+        </ul>
+
+        <h3>7.4.2 캐싱 전략</h3>
+        <ul>
+          <li><strong>L1 캐시:</strong> 애플리케이션 메모리 (로컬)</li>
+          <li><strong>L2 캐시:</strong> Redis (분산 캐시)</li>
+          <li><strong>L3 캐시:</strong> CDN (정적 콘텐츠)</li>
+        </ul>
+
+        <h3>7.4.3 리소스 최적화</h3>
+        <ul>
+          <li><strong>CPU:</strong> 각 Pod 0.5 CPU, 버스트 최대 1 CPU</li>
+          <li><strong>메모리:</strong> 각 Pod 512MB, 최대 1GB</li>
+          <li><strong>스토리지:</strong> 임시 데이터는 ephemeral, 영구 데이터는 PVC</li>
+        </ul>
+
+        <h2>7.5 보안 관리</h2>
+
+        <h3>7.5.1 인증 및 권한</h3>
+        <ul>
+          <li><strong>API 인증:</strong> JWT 토큰 기반</li>
+          <li><strong>데이터베이스 접근:</strong> IAM 역할 기반</li>
+          <li><strong>RBAC:</strong> Kubernetes Role-Based Access Control</li>
+        </ul>
+
+        <h3>7.5.2 데이터 보안</h3>
+        <ul>
+          <li><strong>전송:</strong> TLS 1.3 암호화</li>
+          <li><strong>저장:</strong> at-rest 암호화 (KMS)</li>
+          <li><strong>민감 정보:</strong> Secrets 관리 (Sealed Secrets)</li>
+        </ul>
+
+        <h3>7.5.3 취약점 관리</h3>
+        <ul>
+          <li><strong>의존성 스캔:</strong> Dependabot로 자동 스캔</li>
+          <li><strong>이미지 스캔:</strong> Trivy로 Docker 이미지 검사</li>
+          <li><strong>정기 보안감사:</strong> 분기별 보안 감시</li>
+        </ul>
+
+        <h2>7.6 재해 복구 (DR)</h2>
+
+        <h3>7.6.1 백업 전략</h3>
+        <ul>
+          <li><strong>데이터베이스:</strong> 일일 전체 백업 + 시간당 증분 백업</li>
+          <li><strong>벡터 DB:</strong> 일일 스냅샷</li>
+          <li><strong>문서:</strong> S3 Cross-Region Replication</li>
+          <li><strong>보존 정책:</strong> 30일 보유</li>
+        </ul>
+
+        <h3>7.6.2 복구 계획</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>시나리오</th>
+              <th>RTO</th>
+              <th>RPO</th>
+              <th>실행 방법</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pod 재시작</td>
+              <td>1분</td>
+              <td>0</td>
+              <td>자동 (Kubernetes)</td>
+            </tr>
+            <tr>
+              <td>노드 장애</td>
+              <td>5분</td>
+              <td>0</td>
+              <td>자동 (클러스터 재스케줄링)</td>
+            </tr>
+            <tr>
+              <td>DB 장애</td>
+              <td>15분</td>
+              <td>1시간</td>
+              <td>RDS 자동 페일오버</td>
+            </tr>
+            <tr>
+              <td>지역 장애</td>
+              <td>1시간</td>
+              <td>1시간</td>
+              <td>다른 지역 클러스터 활성화</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>7.7 운영 체크리스트</h2>
+        <div class="success-box">
+          <strong>일일 체크:</strong>
+          <ul>
+            <li>시스템 상태 모니터링 (Grafana)</li>
+            <li>에러 로그 확인</li>
+            <li>캐시 히트율 확인</li>
+            <li>API 응답 시간 모니터링</li>
+          </ul>
+          <strong>주간 체크:</strong>
+          <ul>
+            <li>데이터베이스 성능 리뷰</li>
+            <li>로그 저장소 용량 확인</li>
+            <li>보안 업데이트 확인</li>
+            <li>비용 분석</li>
+          </ul>
+          <strong>월간 체크:</strong>
+          <ul>
+            <li>정기 백업 테스트</li>
+            <li>성능 최적화 분석</li>
+            <li>사용자 피드백 검토</li>
+            <li>용량 계획 검토</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  RAG ChatBot Backend Design Document | 마지막 업데이트: 2024년 1월 15일
+</div>
+
+<script>
+function showSection(index) {
+  const sections = document.querySelectorAll('.section');
+  const navLinks = document.querySelectorAll('.nav-link');
+  const sidebarItems = document.querySelectorAll('.sidebar-item');
+  
+  sections.forEach((section, i) => {
+    section.classList.toggle('active', i === index);
+  });
+  
+  navLinks.forEach((link, i) => {
+    link.classList.toggle('active', i === index);
+  });
+  
+  sidebarItems.forEach((item, i) => {
+    item.classList.toggle('active', i === index);
+  });
+}
+
+// 초기화
+document.addEventListener('DOMContentLoaded', () => {
+  showSection(0);
+});
+</script>
+</body>
+</html>
+<!-- Additional content can be loaded here if needed -->
