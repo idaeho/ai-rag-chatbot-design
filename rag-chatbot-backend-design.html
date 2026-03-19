@@ -1341,6 +1341,51 @@ document.addEventListener('DOMContentLoaded', () => {
   showSection(0);
 });
 </script>
+
+<script>
+// ASCII art 다이어그램을 HTML/CSS 기반으로 교체
+(function(){
+  var allPres=document.querySelectorAll('.diagram pre');
+  var diagrams=[];
+  allPres.forEach(function(pre){
+    var txt=pre.textContent;
+    if(txt.indexOf('┌')>-1||txt.indexOf('▼')>-1) diagrams.push(pre);
+  });
+  var c={bg:'#2D2A26',text:'#E8E2DA',accent:'#C4956A',border:'#E5DDD3'};
+  var boxStyle='border:1px solid '+c.accent+';padding:10px 14px;border-radius:8px;background:rgba(196,149,106,0.12);text-align:center;';
+  var subStyle='font-size:10px;color:'+c.border+';margin-top:3px;';
+  var arrowStyle='color:'+c.accent+';font-size:20px;line-height:1;';
+
+  if(diagrams[0]){
+    var d=document.createElement('div');
+    d.style.cssText='background:'+c.bg+';color:'+c.text+';padding:28px;border-radius:12px;font-size:13px;';
+    d.innerHTML='<div style="text-align:center;"><div style="display:inline-block;background:'+c.accent+';color:'+c.bg+';padding:10px 24px;border-radius:8px;font-weight:bold;font-size:14px;">클라이언트 계층</div><div style="font-size:11px;color:'+c.border+';margin:6px 0 12px;">웹 브라우저 · 모바일 앱 · 제3자 API 클라이언트</div><div style="'+arrowStyle+'">▼</div><div style="display:flex;gap:12px;justify-content:center;margin:12px 0;"><div style="'+boxStyle+'flex:1;max-width:160px;">API Gateway<div style="'+subStyle+'">Kong</div></div><div style="'+boxStyle+'flex:1;max-width:160px;">Load Balancer<div style="'+subStyle+'">Nginx</div></div></div><div style="'+arrowStyle+'">▼</div><div style="'+boxStyle+'margin:12px auto;max-width:320px;padding:14px 18px;"><div style="font-weight:bold;font-size:14px;">FastAPI 백엔드</div><div style="'+subStyle+'">다중 인스턴스</div><div style="display:flex;gap:8px;justify-content:center;margin-top:8px;"><div style="border:1px solid '+c.border+';padding:4px 8px;border-radius:4px;font-size:10px;color:'+c.border+';">라우터 · 미들웨어</div><div style="border:1px solid '+c.border+';padding:4px 8px;border-radius:4px;font-size:10px;color:'+c.border+';">비즈니스 로직</div></div></div><div style="'+arrowStyle+'">▼</div><div style="display:flex;gap:12px;justify-content:center;margin:12px 0;flex-wrap:wrap;"><div style="'+boxStyle+'flex:1;min-width:120px;">sLLM 서빙<div style="'+subStyle+'">Ollama / vLLM</div></div><div style="'+boxStyle+'flex:1;min-width:120px;">벡터DB<div style="'+subStyle+'">Qdrant</div></div><div style="'+boxStyle+'flex:1;min-width:120px;">관계형DB<div style="'+subStyle+'">PostgreSQL</div></div></div><div style="display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap;"><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;background:rgba(229,221,211,0.05);font-size:11px;">워크플로우<div style="font-size:9px;color:'+c.border+';">Temporal</div></div><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;background:rgba(229,221,211,0.05);font-size:11px;">메시지큐<div style="font-size:9px;color:'+c.border+';">Redis</div></div><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;background:rgba(229,221,211,0.05);font-size:11px;">모니터링<div style="font-size:9px;color:'+c.border+';">Prometheus</div></div></div></div>';
+    diagrams[0].replaceWith(d);
+  }
+
+  if(diagrams[1]){
+    var steps=[['사용자 입력',''],['API 수신','메시지 처리'],['인증 검증','JWT 토큰 확인'],['캐시 확인','Redis'],['임베딩','OpenAI API'],['벡터 검색','Pinecone / Qdrant'],['문서 검색','PostgreSQL'],['프롬프트 구성','컨텍스트 + 질의 조합'],['LLM 생성','Streaming 응답'],['응답 전송','캐시 저장 · 이력 기록']];
+    var d2=document.createElement('div');
+    d2.style.cssText='background:'+c.bg+';color:'+c.text+';padding:28px;border-radius:12px;font-size:13px;';
+    var h='<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">';
+    steps.forEach(function(s,i){
+      h+='<div style="'+boxStyle+'min-width:200px;"><div style="font-weight:bold;">'+s[0]+'</div>'+(s[1]?'<div style="'+subStyle+'">'+s[1]+'</div>':'')+'</div>';
+      if(i===3) h+='<div style="display:flex;gap:20px;font-size:11px;color:'+c.border+';margin:4px 0;"><span style="color:#5B8C5A;">● 命中 → 반환</span><span style="color:'+c.accent+';">● 미命中 → 계속 ▼</span></div>';
+      else if(i<steps.length-1) h+='<div style="'+arrowStyle+'">▼</div>';
+    });
+    h+='</div>';
+    d2.innerHTML=h;
+    diagrams[1].replaceWith(d2);
+  }
+
+  if(diagrams[2]){
+    var d3=document.createElement('div');
+    d3.style.cssText='background:'+c.bg+';color:'+c.text+';padding:28px;border-radius:12px;font-size:13px;';
+    d3.innerHTML='<div style="border:2px solid '+c.accent+';padding:20px;border-radius:8px;background:rgba(196,149,106,0.08);"><div style="font-weight:bold;color:'+c.accent+';margin-bottom:15px;">☁ 클라우드 환경 (AWS)</div><div style="border:1px solid '+c.accent+';padding:18px;border-radius:8px;margin-left:15px;background:rgba(196,149,106,0.05);margin-bottom:15px;"><div style="font-weight:bold;color:'+c.accent+';margin-bottom:12px;">📦 VPC</div><div style="border:1px solid '+c.accent+';padding:16px;border-radius:8px;margin-left:15px;background:rgba(196,149,106,0.04);margin-bottom:12px;"><div style="font-weight:bold;color:'+c.accent+';margin-bottom:10px;">⚙ 쿠버네티스 클러스터</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-left:12px;"><div style="border:1px solid '+c.border+';padding:10px;border-radius:6px;background:rgba(229,221,211,0.03);"><div style="color:'+c.accent+';font-size:11px;font-weight:bold;margin-bottom:4px;">서비스 Pod</div><div style="font-size:11px;color:'+c.border+';">FastAPI 앱 ×3<br>Worker ×5<br>Nginx Ingress ×2</div></div><div style="border:1px solid '+c.border+';padding:10px;border-radius:6px;background:rgba(229,221,211,0.03);"><div style="color:'+c.accent+';font-size:11px;font-weight:bold;margin-bottom:4px;">네트워크 · 스토리지</div><div style="font-size:11px;color:'+c.border+';">Service (로드밸런싱)<br>PVC (영구 저장소)<br>ConfigMap (설정)</div></div></div></div><div style="border:1px solid '+c.accent+';padding:16px;border-radius:8px;margin-left:15px;background:rgba(196,149,106,0.04);"><div style="font-weight:bold;color:'+c.accent+';margin-bottom:10px;">🔧 관리형 서비스</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:12px;"><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;font-size:11px;color:'+c.border+';">RDS PostgreSQL</div><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;font-size:11px;color:'+c.border+';">ElastiCache Redis</div><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;font-size:11px;color:'+c.border+';">S3 Storage</div></div></div></div><div style="border-left:2px solid '+c.accent+';padding-left:14px;margin:14px 0 0 12px;"><div style="font-weight:bold;color:'+c.accent+';margin-bottom:6px;">🌐 외부 서비스</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;font-size:11px;color:'+c.border+';">Qdrant Cloud</div><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;font-size:11px;color:'+c.border+';">OpenAI API</div><div style="border:1px solid '+c.border+';padding:6px 10px;border-radius:6px;font-size:11px;color:'+c.border+';">Grafana</div></div></div></div>';
+    diagrams[2].replaceWith(d3);
+  }
+})();
+</script>
 </body>
 </html>
 <!-- Additional content can be loaded here if needed -->
